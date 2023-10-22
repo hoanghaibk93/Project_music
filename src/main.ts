@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
 
 
 async function bootstrap() {
@@ -14,6 +15,8 @@ async function bootstrap() {
   console.log("check path: ", join(__dirname, '..', 'views') );
   
   app.setViewEngine('ejs');
+
+  app.useGlobalPipes(new ValidationPipe());
 
   await app.listen(configSerivce.get<string>("PORT"));
 }
