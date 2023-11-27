@@ -10,7 +10,8 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configSerivce = app.get(ConfigService)
-
+  
+  // Sử dụng authGuard global (trong file main, có thể làm trong file app.module như hướng dẩn)
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new JwtAuthGuard(reflector));
 
