@@ -11,8 +11,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configSerivce = app.get(ConfigService)
   
-  // Sử dụng authGuard global (trong file main, có thể làm trong file app.module như hướng dẩn)
   const reflector = app.get(Reflector);
+  // Sử dụng authGuard global (trong file main, có thể làm trong file app.module như hướng dẩn)
   app.useGlobalGuards(new JwtAuthGuard(reflector));
 
   app.useStaticAssets(join(__dirname, '..', 'public'));
@@ -23,6 +23,14 @@ async function bootstrap() {
   app.setViewEngine('ejs');
 
   app.useGlobalPipes(new ValidationPipe());
+  app.enableCors(
+    {
+      "origin": "*",
+      "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "preflightContinue": false,
+      "optionsSuccessStatus": 204
+    }
+  );
 
   await app.listen(configSerivce.get<string>("PORT"));
 }
