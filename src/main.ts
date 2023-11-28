@@ -3,17 +3,20 @@ import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { TransformInterceptor } from './core/transform.interceptor';
 
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configSerivce = app.get(ConfigService)
-  
+
   const reflector = app.get(Reflector);
   // Sử dụng authGuard global (trong file main, có thể làm trong file app.module như hướng dẩn)
   app.useGlobalGuards(new JwtAuthGuard(reflector));
+  // khai báo để sử dụng interceptor để định dạng global kiểu dữ liệu trả về cho client
+  app.useGlobalInterceptors(new TransformInterceptor(reflector));
 
   app.useStaticAssets(join(__dirname, '..', 'public'));
   app.setBaseViewsDir(join(__dirname, '..', 'views'));
@@ -23,6 +26,8 @@ async function bootstrap() {
   app.setViewEngine('ejs');
 
   app.useGlobalPipes(new ValidationPipe());
+
+
   app.enableCors(
     {
       "origin": "*",
@@ -31,6 +36,12 @@ async function bootstrap() {
       "optionsSuccessStatus": 204
     }
   );
+  //config version
+  app.setGlobalPrefix('api')
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: ['1', '2']
+  });
 
   await app.listen(configSerivce.get<string>("PORT"));
 }
