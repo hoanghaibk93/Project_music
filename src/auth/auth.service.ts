@@ -1,13 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { IUser } from 'src/users/user.interface';
+import { CreateUserDto, RegisterUserDto } from 'src/users/dto/create-user.dto';
+import { ConfigService } from '@nestjs/config';
+import ms from 'ms';
+import * as cookieParser from 'cookie-parser';
+import { Response } from 'express';
+import { log } from 'console';
 
 @Injectable()
 export class AuthService {
     constructor(
         private usersService: UsersService,
-        private jwtService: JwtService
+        private jwtService: JwtService,
+        private configService: ConfigService
 
     ) { }
 
@@ -23,7 +30,7 @@ export class AuthService {
         return null;
     }
 
-    async login(user: IUser) {
+    async login(user: IUser, response: Response) {
         const { _id, name, email, role } = user;
         const payload = {
             sub: "token login",
@@ -33,13 +40,96 @@ export class AuthService {
             email,
             role
         };
+        const refresh_token = this.createRefreshToken(payload)
+
+        //update user with refresh token
+        await this.usersService.updateUserToken(refresh_token, _id)
+
+        //set refresh_token as cookies: lưu vào cookie để bảo mật (có thể lưu vào datebase ít bảo mật hơn)
+        response.cookie('refresh_token', refresh_token, {
+            httpOnly: true,
+            //set maxAge (thời gian sống) cùng thời gian hết hạn với refresh token để khi toke hết hạn thì cookie hết hạn ở phía client luôn
+            maxAge: ms(this.configService.get<string>("JWT_REFRESH_EXPIRE"))
+        })
+
         return {
             access_token: this.jwtService.sign(payload),
-            _id,
-            name,
-            email,
-            role
+            user: {
+                _id,
+                name,
+                email,
+                role
+            }
         };
+    }
+
+    async register(registerUserDto: RegisterUserDto) {
+        return await this.usersService.register(registerUserDto)
+
+    }
+
+    createRefreshToken = (payload) => {
+        const refresh_token = this.jwtService.sign(payload, {
+            secret: this.configService.get<string>("JWT_REFRESH_TOKEN_SECRET"),
+            expiresIn: ms(this.configService.get<string>("JWT_REFRESH_EXPIRE")) / 1000
+        })
+        return refresh_token;
+    }
+
+    processNewToken = async (refreshToken: string, response: Response) => {
+        try {
+            this.jwtService.verify(refreshToken, {
+                secret: this.configService.get<string>("JWT_REFRESH_TOKEN_SECRET")
+            })
+            let user = await this.usersService.findUserByToken(refreshToken);
+            if (user) {
+                //uddate refrest token
+                const { _id, name, email, role } = user;
+                const payload = {
+                    sub: "token refresh",
+                    iss: "from server",
+                    _id,
+                    name,
+                    email,
+                    role
+                };
+                const refresh_token = this.createRefreshToken(payload)
+
+                //update user with refresh token
+                await this.usersService.updateUserToken(refresh_token, _id.toString())
+
+                // xóa cookie củ sau đó gán lại mới
+                response.clearCookie("refresh_token")
+
+                //set refresh_token as cookies: lưu vào cookie để bảo mật (có thể lưu vào datebase ít bảo mật hơn)
+                response.cookie('refresh_token', refresh_token, {
+                    httpOnly: true,
+                    //set maxAge (thời gian sống) cùng thời gian hết hạn với refresh token để khi toke hết hạn thì cookie hết hạn ở phía client luôn
+                    maxAge: ms(this.configService.get<string>("JWT_REFRESH_EXPIRE"))
+                })
+
+                return {
+                    access_token: this.jwtService.sign(payload),
+                    user: {
+                        _id,
+                        name,
+                        email,
+                        role
+                    }
+                };
+
+            } else {
+                throw new BadRequestException('Refresh token không hợp lệ, vui lòng login')
+            }
+
+        } catch (error) {
+            throw new BadRequestException('Refresh token không hợp lệ, vui lòng login')
+        }
+    }
+    logout = async (user: IUser, response: Response) => {
+        await this.usersService.updateUserToken(null, user._id)
+        response.clearCookie("refresh_token")
+        return "ok"
     }
 
 }

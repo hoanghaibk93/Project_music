@@ -14,13 +14,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_ACCESS_TOKEN'),
+      secretOrKey: configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
     });
   }
   //nếu access-token hợp lệ thì trả thông tin về người dùng
   async validate(payload: IUser) {
     console.log('>>>>>check', payload);
-    
+
     const { _id, name, email, role } = payload;
     //req.user
     return {
