@@ -19,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
   //nếu access-token hợp lệ thì trả thông tin về người dùng
   async validate(payload: IUser) {
-    console.log('>>>>>check', payload);
+   
 
     const { _id, name, email, role } = payload;
     //req.user

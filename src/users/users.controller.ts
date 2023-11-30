@@ -15,7 +15,6 @@ export class UsersController {
   @Post()
   async create(@Body() createUserDto: CreateUserDto, @User() user: IUser) {
     const userOld = await this.usersService.findOneByEmail(createUserDto.email);
-    console.log("check", userOld)
     if (userOld) {
       throw new BadRequestException(`The email ${userOld.email} đã tồn tại trong hệ thống`)
     }
