@@ -6,12 +6,14 @@ import { CreateUserDto, RegisterUserDto } from 'src/users/dto/create-user.dto';
 import { UsersService } from 'src/users/users.service';
 import { Request, Response } from 'express';
 import { IUser } from 'src/users/user.interface';
+import { RolesService } from 'src/roles/roles.service';
 
 @Controller("auth")
 export class AuthController {
     constructor(
         private authService: AuthService,
-        private readonly usersService: UsersService
+        private readonly usersService: UsersService,
+        private rolesService: RolesService,
     ) { }
 
     @Public()
@@ -39,6 +41,8 @@ export class AuthController {
     @ResponseMessage("Get user information")
     @Get('/account')
     async handleGetAccount(@User() user: IUser) {
+        const temp = await this.rolesService.findOne(user.role._id) as any;
+        user.permissions = temp.permissions;
         return { user }
     }
 

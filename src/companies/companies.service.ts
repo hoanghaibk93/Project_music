@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -29,7 +29,7 @@ export class CompaniesService {
     let offset = (+currentPage - 1) * (+limit);
     let defaultLimit = +limit ? +limit : 10;
     const totalItems = (await this.companyModel.find(filter)).length;
-    const totalPages = Math.ceil(totalItems / defaultLimit);    
+    const totalPages = Math.ceil(totalItems / defaultLimit);
     const result = await this.companyModel.find(filter)
       .skip(offset)
       .limit(defaultLimit)
@@ -48,12 +48,12 @@ export class CompaniesService {
     }
   }
 
- async findOne(id: string) {
+  async findOne(id: string) {
     try {
       const company = await this.companyModel.findOne({ _id: id });
       return company
     } catch (error) {
-      return 'not found user'
+      throw new BadRequestException(`not found company with id=${id}`)
     }
   }
 
@@ -82,7 +82,7 @@ export class CompaniesService {
       return await this.companyModel.softDelete({ _id: id });
     } catch (error) {
       console.log(error);
-      return { message: 'not found user' }
+      return { message: 'not found company' }
     }
 
   }

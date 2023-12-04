@@ -1,18 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateUserDto, RegisterUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User as UserM, UserDocument } from './schemas/user.schema';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { IUser } from './user.interface';
 import aqp from 'api-query-params';
+import { Role, RoleDocument } from 'src/roles/schemas/role.schema';
+import { USER_ROLE } from 'src/databases/sample';
 
 @Injectable()
 export class UsersService {
   // constructor(@InjectModel(User.name) private userModel: Model<User>) { }
   // Cấu hình sử dụng xóa mềm
-  constructor(@InjectModel(UserM.name) private userModel: SoftDeleteModel<UserDocument>) { }
+  constructor(
+    @InjectModel(UserM.name) private userModel: SoftDeleteModel<UserDocument>,
+
+    @InjectModel(Role.name) private roleModel: SoftDeleteModel<RoleDocument>
+
+  ) { }
 
   hasPassword = (password: string) => {
     const bcrypt = require('bcryptjs');
@@ -24,14 +31,13 @@ export class UsersService {
   async create(createUserDto: CreateUserDto, user: IUser) {
 
     const hashPassword = this.hasPassword(createUserDto.password);
-
     let newUser = await this.userModel.create({
       ...createUserDto,
       password: hashPassword,
       createBy: {
         _id: user._id,
         email: user.email
-      }
+      },
     });
     return newUser;
   }
@@ -39,14 +45,16 @@ export class UsersService {
   async register(registerUserDto: RegisterUserDto) {
 
     const hashPassword = this.hasPassword(registerUserDto.password);
+     //fetch user role
+     const userRole = await this.roleModel.findOne({ name: USER_ROLE })
 
-    let user = await this.userModel.create({ ...registerUserDto, password: hashPassword, role: "USER" });
+    let user = await this.userModel.create({ ...registerUserDto, password: hashPassword, role: userRole?._id });
     return user;
   }
 
   async findAll(currentPage: number, limit: number, qs: string) {
 
-    const { filter, sort, projection, population } = aqp(qs); 
+    const { filter, sort, projection, population } = aqp(qs);
     delete filter.current
     delete filter.pageSize
     let offset = (+currentPage - 1) * (+limit);
@@ -59,6 +67,7 @@ export class UsersService {
       .limit(defaultLimit)
       .sort(sort as any)
       .populate(population)
+      .select(projection)
       .exec();
     return {
       meta: {
@@ -73,7 +82,9 @@ export class UsersService {
 
   async findOne(id: string) {
     try {
-      const user = await this.userModel.findOne({ _id: id }).select('-password');
+      const user = await this.userModel.findOne({ _id: id })
+        .select('-password')
+        .populate({ path: "role", select: { name: 1, _id: 1 } })
       return user
     } catch (error) {
       return 'not found user'
@@ -83,7 +94,7 @@ export class UsersService {
   async findOneByUserName(username: string) {
     return await this.userModel.findOne(
       { email: username }
-    );
+    ).populate({ path: "role", select: { name: 1 } });
   }
 
   async findOneByEmail(email: string) {
@@ -110,12 +121,16 @@ export class UsersService {
   }
 
   async remove(id: string, user: IUser) {
-    try {
-      await this.userModel.updateOne({ _id: id }, { deleteBy: { _id: user._id, email: user.email } });
-      return await this.userModel.softDelete({ _id: id });
-    } catch (error) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return 'not found user'
     }
+    const foundUser = await this.userModel.findById(id);
+    if (foundUser && foundUser.email === 'admin.@gmail.com') {
+      throw new BadRequestException("Không thể xóa tài khoản admin")
+    }
+    await this.userModel.updateOne({ _id: id }, { deleteBy: { _id: user._id, email: user.email } });
+    return await this.userModel.softDelete({ _id: id });
+
   }
   updateUserToken = async (refreshToken: string, _id: string) => {
     return await this.userModel.updateOne(
@@ -126,6 +141,7 @@ export class UsersService {
   }
 
   findUserByToken = async (refreshToken: string) => {
-    return await this.userModel.findOne({refreshToken})
+    return await this.userModel.findOne({ refreshToken })
+      .populate({ path: "role", select: { name: 1 } })
   }
 }

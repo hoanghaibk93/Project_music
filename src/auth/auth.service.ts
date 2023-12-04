@@ -8,13 +8,15 @@ import ms from 'ms';
 import * as cookieParser from 'cookie-parser';
 import { Response } from 'express';
 import { log } from 'console';
+import { RolesService } from 'src/roles/roles.service';
 
 @Injectable()
 export class AuthService {
     constructor(
         private usersService: UsersService,
         private jwtService: JwtService,
-        private configService: ConfigService
+        private configService: ConfigService,
+        private rolesService: RolesService,
 
     ) { }
 
@@ -24,14 +26,21 @@ export class AuthService {
         if (user) {
             const isValid = this.usersService.isValidPassword(pass, user.password)
             if (isValid) {
-                return user;
+                const userRole = user.role as unknown as { _id: string; name: string };
+                const temp = await this.rolesService.findOne(userRole._id) as any
+
+                const objectUser = {
+                    ...user.toObject(),
+                    permissions: temp?.permissions ?? []
+                }
+                return objectUser;
             }
         }
         return null;
     }
 
     async login(user: IUser, response: Response) {
-        const { _id, name, email, role } = user;
+        const { _id, name, email, role, permissions } = user;
         const payload = {
             sub: "token login",
             iss: "from server",
@@ -58,7 +67,8 @@ export class AuthService {
                 _id,
                 name,
                 email,
-                role
+                role,
+                permissions
             }
         };
     }
@@ -82,6 +92,7 @@ export class AuthService {
                 secret: this.configService.get<string>("JWT_REFRESH_TOKEN_SECRET")
             })
             let user = await this.usersService.findUserByToken(refreshToken);
+
             if (user) {
                 //uddate refrest token
                 const { _id, name, email, role } = user;
@@ -97,6 +108,10 @@ export class AuthService {
 
                 //update user with refresh token
                 await this.usersService.updateUserToken(refresh_token, _id.toString())
+
+                //fetch user's role
+                const userRole = user.role as unknown as { _id: string; name: string };
+                const temp = await this.rolesService.findOne(userRole._id) as any
 
                 // xóa cookie củ sau đó gán lại mới
                 response.clearCookie("refresh_token")
@@ -114,7 +129,8 @@ export class AuthService {
                         _id,
                         name,
                         email,
-                        role
+                        role,
+                        permissions: temp?.permissions ?? []
                     }
                 };
 

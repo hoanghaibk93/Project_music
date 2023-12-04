@@ -52,7 +52,8 @@ export class JobsService {
       const job = await this.jobModel.findOne({ _id: id });
       return job
     } catch (error) {
-      return 'not found user'
+      console.log(error);
+      return { message: 'not found user' }
     }
   }
 
