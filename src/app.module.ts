@@ -13,11 +13,14 @@ import { ResumesModule } from './resumes/resumes.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { RolesModule } from './roles/roles.module';
 import { DatabasesModule } from './databases/databases.module';
-
+import { SubcribersModule } from './subcribes/subcribers.module';
+import { MailModule } from './mail/mail.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     // MongooseModule.forRoot('mongodb+srv://hoanghaibk93:hoanghaibk93@cluster0.qiup1zv.mongodb.net/'),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -27,31 +30,35 @@ import { DatabasesModule } from './databases/databases.module';
         connectionFactory: (connection) => {
           connection.plugin(softDeletePlugin);
           return connection;
-          }
-          
+        }
+
       }),
       inject: [ConfigService],
     }),
- 
-  ConfigModule.forRoot({ ignoreEnvFile: true }),
- 
-  UsersModule,
- 
-  AuthModule,
- 
-  CompaniesModule,
- 
-  JobsModule,
- 
-  FilesModule,
- 
-  ResumesModule,
- 
-  PermissionsModule,
- 
-  RolesModule,
- 
-  DatabasesModule],
+
+    ConfigModule.forRoot({ ignoreEnvFile: true }),
+
+    UsersModule,
+
+    AuthModule,
+
+    CompaniesModule,
+
+    JobsModule,
+
+    FilesModule,
+
+    ResumesModule,
+
+    PermissionsModule,
+
+    RolesModule,
+
+    DatabasesModule,
+
+    SubcribersModule,
+
+    MailModule],
   controllers: [AppController],
   providers: [AppService,
     // {
