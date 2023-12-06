@@ -29,15 +29,15 @@ export class AppController {
   // }
 
   
-  @Get('profile')
-  getProfile(@Request() req) {
-    return req.user;
-  }
+  // @Get('profile')
+  // getProfile(@Request() req) {
+  //   return req.user;
+  // }
 
   // @UseGuards(JwtAuthGuard)
-  @Public()
-  @Get('profile1')
-  getProfile1(@Request() req) {
-    return req.user;
-  }
+  // @Public()
+  // @Get('profile1')
+  // getProfile1(@Request() req) {
+  //   return req.user;
+  // }
 }
